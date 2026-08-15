@@ -1,0 +1,27 @@
+{
+  "name": "realtime-editor-server",
+  "version": "1.0.0",
+  "description": "Backend for a real-time collaborative editor (Google Docs style) using Yjs CRDTs over Socket.io",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "nanoid": "^3.3.7",
+    "socket.io": "^4.7.5",
+    "yjs": "^13.6.18",
+    "y-protocols": "^1.0.6",
+    "lib0": "^0.2.94"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "allowScripts": {
+    "better-sqlite3@11.10.0": true
+  }
+}

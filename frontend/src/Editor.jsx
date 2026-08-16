@@ -31,19 +31,25 @@ export default function Editor({ docId, docTitle }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(title);
   const editingTitleRef = useRef(editingTitle);
+  // Tracks whether we've already established the "real" title, from either
+  // the initial fetch or a user rename — once true, a late-arriving initial
+  // fetch response is stale and must not overwrite anything newer.
+  const titleResolvedRef = useRef(false);
   const user = useRef(getUserIdentity()).current;
 
   useEffect(() => {
     editingTitleRef.current = editingTitle;
   }, [editingTitle]);
 
-  // docTitle arrives asynchronously (EditorRoute fetches it after mount), so
-  // sync it in once it resolves. This only fires when the prop itself
-  // changes, so it won't clobber a title the user is actively editing.
+  // docTitle arrives asynchronously (EditorRoute fetches it after mount).
+  // Only apply it if nothing has resolved the title yet — otherwise a slow
+  // initial fetch (e.g. a cold-starting backend) could land after the user
+  // has already renamed the document and silently stomp on it.
   useEffect(() => {
-    if (docTitle) {
+    if (docTitle && !titleResolvedRef.current) {
       setTitle(docTitle);
       setTitleDraft(docTitle);
+      titleResolvedRef.current = true;
     }
   }, [docTitle]);
 
@@ -54,6 +60,10 @@ export default function Editor({ docId, docTitle }) {
       setTitleDraft(title);
       return;
     }
+    // Lock in the title as resolved right away, before the request even
+    // goes out — this is what stops a slower, earlier-fired initial fetch
+    // from overwriting this rename when it eventually resolves.
+    titleResolvedRef.current = true;
     const previousTitle = title;
     setTitle(trimmed); // optimistic update
     try {

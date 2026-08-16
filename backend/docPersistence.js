@@ -60,10 +60,23 @@ function createDocument(docId, title) {
   ).run(docId, title || 'Untitled document', now, now);
 }
 
+/**
+ * Renames an existing document. Returns true if a row was actually updated,
+ * false if no document with that id exists.
+ */
+function renameDocument(docId, title) {
+  const now = Date.now();
+  const result = db
+    .prepare('UPDATE documents SET title = ?, updated_at = ? WHERE id = ?')
+    .run(title, now, docId);
+  return result.changes > 0;
+}
+
 module.exports = {
   loadDocState,
   saveDocState,
   listDocuments,
   getDocMeta,
   createDocument,
+  renameDocument,
 };

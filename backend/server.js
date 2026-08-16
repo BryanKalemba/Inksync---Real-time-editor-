@@ -16,6 +16,7 @@ const {
   listDocuments,
   getDocMeta,
   createDocument,
+  renameDocument,
 } = require('./docPersistence');
 
 const PORT = process.env.PORT || 4000;
@@ -52,6 +53,26 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
   maxHttpBufferSize: 1e7, // 10MB, generous for large paste operations
+});
+
+// Renaming needs `io` in scope (to broadcast the new title live to anyone
+// currently viewing the document), so this route is defined here rather
+// than alongside the other REST routes above.
+app.patch('/api/documents/:id', (req, res) => {
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  if (!title) return res.status(400).json({ error: 'Title cannot be empty' });
+  if (title.length > 200) return res.status(400).json({ error: 'Title is too long' });
+
+  const meta = getDocMeta(req.params.id);
+  if (!meta) return res.status(404).json({ error: 'Document not found' });
+
+  renameDocument(req.params.id, title);
+  // socket.join(docId) in 'join-document' below puts every viewer of this
+  // document into a room named after its id, so this reaches everyone
+  // currently looking at it, live.
+  io.to(req.params.id).emit('document-renamed', { docId: req.params.id, title });
+
+  res.json({ id: req.params.id, title });
 });
 
 // --- In-memory room state ---------------------------------------------------

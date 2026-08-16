@@ -27,12 +27,60 @@ export default function Editor({ docId, docTitle }) {
   const [synced, setSynced] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
   const [wordCount, setWordCount] = useState(0);
+  const [title, setTitle] = useState(docTitle || 'Untitled document');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title);
+  const editingTitleRef = useRef(editingTitle);
   const user = useRef(getUserIdentity()).current;
+
+  useEffect(() => {
+    editingTitleRef.current = editingTitle;
+  }, [editingTitle]);
+
+  // docTitle arrives asynchronously (EditorRoute fetches it after mount), so
+  // sync it in once it resolves. This only fires when the prop itself
+  // changes, so it won't clobber a title the user is actively editing.
+  useEffect(() => {
+    if (docTitle) {
+      setTitle(docTitle);
+      setTitleDraft(docTitle);
+    }
+  }, [docTitle]);
+
+  const saveTitle = async () => {
+    const trimmed = titleDraft.trim();
+    setEditingTitle(false);
+    if (!trimmed || trimmed === title) {
+      setTitleDraft(title);
+      return;
+    }
+    const previousTitle = title;
+    setTitle(trimmed); // optimistic update
+    try {
+      const res = await fetch(`${SERVER_URL}/api/documents/${docId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      if (!res.ok) throw new Error('Rename request failed');
+    } catch (err) {
+      // Revert on failure (e.g. backend unreachable) so the UI doesn't lie
+      // about what's actually saved.
+      setTitle(previousTitle);
+      setTitleDraft(previousTitle);
+    }
+  };
 
   useEffect(() => {
     const ydoc = new Y.Doc();
     const provider = new SocketIOProvider(SERVER_URL, docId, ydoc, { user });
     provider.setLocalUser(user);
+
+    const handleRenamed = ({ title: newTitle }) => {
+      setTitle(newTitle);
+      setTitleDraft((current) => (editingTitleRef.current ? current : newTitle));
+    };
+    provider.socket.on('document-renamed', handleRenamed);
 
     const unsubStatus = provider.onStatusChange(({ connected, synced: isSynced }) => {
       setStatus(connected ? 'connected' : 'reconnecting');
@@ -72,6 +120,7 @@ export default function Editor({ docId, docTitle }) {
     return () => {
       quill.off('text-change', updateWordCount);
       provider.awareness.off('change', updatePresence);
+      provider.socket.off('document-renamed', handleRenamed);
       unsubStatus();
       binding.destroy();
       provider.destroy();
@@ -85,7 +134,36 @@ export default function Editor({ docId, docTitle }) {
         <Link to="/" className="brand-mark" aria-label="Back to documents">
           InkSync
         </Link>
-        <div className="doc-title">{docTitle || 'Untitled document'}</div>
+        <div className="doc-title">
+          {editingTitle ? (
+            <input
+              className="doc-title-input"
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur();
+                if (e.key === 'Escape') {
+                  setTitleDraft(title);
+                  setEditingTitle(false);
+                }
+              }}
+              maxLength={200}
+              autoFocus
+            />
+          ) : (
+            <button
+              className="doc-title-button"
+              onClick={() => {
+                setTitleDraft(title);
+                setEditingTitle(true);
+              }}
+              title="Click to rename"
+            >
+              {title}
+            </button>
+          )}
+        </div>
         <div className="topbar-right">
           <div className="presence-stack" aria-label="Collaborators currently viewing">
             {collaborators.map((c, i) => (

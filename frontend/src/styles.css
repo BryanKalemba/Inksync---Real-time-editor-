@@ -166,10 +166,51 @@ a {
 }
 
 .doc-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.doc-title-button,
+.doc-title-input {
   font-family: 'Fraunces', serif;
   font-size: 1rem;
   color: var(--paper);
-  flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 0.2rem 0.5rem;
+  margin-left: -0.5rem;
+  max-width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.doc-title-button {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.doc-title-button:hover {
+  border-color: #3a3f43;
+  background: rgba(237, 231, 214, 0.05);
+}
+
+.doc-title-button:focus-visible {
+  outline: 2px solid var(--ink-gold);
+  outline-offset: 1px;
+}
+
+.doc-title-input {
+  cursor: text;
+  border-color: var(--ink-gold);
+  background: rgba(237, 231, 214, 0.05);
+  width: 100%;
+}
+
+.doc-title-input:focus {
+  outline: none;
 }
 
 .topbar-right {
@@ -331,6 +372,10 @@ a {
   .doc-title {
     order: 3;
     flex-basis: 100%;
+  }
+
+  .doc-title-button,
+  .doc-title-input {
     font-size: 0.9rem;
   }
 
